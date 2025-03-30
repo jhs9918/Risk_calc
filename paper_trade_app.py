@@ -6,16 +6,27 @@ import requests
 from calculator import calculate_stop_loss_price
 from asset_manager import get_paper_asset, update_paper_asset
 
-# 바이낸스 선물 티커 목록 가져오기 (자동완성용)
+# ✅ 바이낸스 선물 티커 자동 불러오기 (예외 처리 포함)
 @st.cache_data(ttl=3600)
 def get_binance_futures_symbols():
     url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
     res = requests.get(url)
-    data = res.json()
-    symbols = [s["symbol"] for s in data["symbols"] if s["contractType"] == "PERPETUAL" and s["quoteAsset"] == "USDT"]
-    return sorted(symbols)
 
-# GitHub 자동 푸시
+    try:
+        data = res.json()
+        if "symbols" not in data:
+            st.error(f"❌ Binance 응답 오류: {data}")
+            return ["BTCUSDT", "ETHUSDT"]
+        symbols = [
+            s["symbol"] for s in data["symbols"]
+            if s.get("contractType") == "PERPETUAL" and s.get("quoteAsset") == "USDT"
+        ]
+        return sorted(symbols)
+    except Exception as e:
+        st.error(f"❌ Binance API 오류: {e}")
+        return ["BTCUSDT", "ETHUSDT"]
+
+# ✅ GitHub 자동 푸시
 def push_to_github(content):
     token = st.secrets["GITHUB_TOKEN"]
     username = st.secrets["GITHUB_USERNAME"]
@@ -43,7 +54,7 @@ def push_to_github(content):
         st.error(f"❌ GitHub 커밋 실패: {res.status_code}")
         st.json(res.json())
 
-# 파일 경로
+# 계약 파일
 POSITIONS_FILE = "saved_positions.json"
 
 def load_positions():
@@ -58,7 +69,7 @@ def save_positions(data):
     with open(POSITIONS_FILE, "r") as f:
         push_to_github(f.read())
 
-# 기본 설정
+# ✅ Streamlit 앱 구성
 st.set_page_config(page_title="📘 가상 리스크 계산기", layout="wide")
 st.title("📘 Hadol’s 가상 리스크 계산기 (Paper Trading)")
 
@@ -111,4 +122,4 @@ if selected_id == "새 계약 입력":
         save_positions(positions)
         st.success(f"✅ 계약 저장 완료: {new_id}")
 
-# 이하 기존 계약 보기 및 조작 코드는 동일 (줄임)
+# 이하 기존 계약 열람 및 조작은 동일 (변경 없음)
