@@ -1,0 +1,15 @@
+# 환경 변수 및 민감 정보
+.env
+
+# 로컬 자산 및 로그 파일
+total_asset.json
+risk_log.csv
+
+# Python 일반 무시 항목
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
