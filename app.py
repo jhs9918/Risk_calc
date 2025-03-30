@@ -21,7 +21,7 @@ html, body, [class*="css"]  {
 </style>
 """, unsafe_allow_html=True)
 
-st.title("💹 투자 리스크 계산기 (단위: $)")
+st.title("Hadol_s Risk Manager")
 
 total_asset = get_total_asset()
 st.sidebar.subheader(f"💰 총 자산: ${total_asset:,}")
