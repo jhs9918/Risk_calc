@@ -31,7 +31,6 @@ def save_positions(data):
     with open(POSITIONS_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
-# ✅ Streamlit 설정
 st.set_page_config(page_title="📘 가상 리스크 계산기", layout="wide")
 st.title("📘 Hadol’s 가상 리스크 계산기 (Paper Trading)")
 
@@ -41,11 +40,9 @@ st.sidebar.markdown(f"💰 **총 자산: ${total_asset:,.2f}**")
 positions = load_positions()
 selected_id = st.sidebar.selectbox("📂 저장된 계약 선택", ["새 계약 입력"] + [p["id"] for p in positions])
 
-# ---------------- 새 계약 입력 ----------------
 if selected_id == "새 계약 입력":
     st.subheader("🆕 새 계약 입력")
-    symbol = st.selectbox("종목 선택 (자동완성)", options=futures_symbols, index=futures_symbols.index("BTCUSDT") if "BTCUSDT" in futures_symbols else 0)
-
+    symbol = st.selectbox("종목 선택", options=futures_symbols)
     entry_price = st.number_input("진입 가격 ($)", value=27000.0, format="%.6f")
     leverage = st.number_input("레버리지", 1, 125, 10)
     direction = st.radio("포지션 방향", ["LONG", "SHORT"])
@@ -53,7 +50,9 @@ if selected_id == "새 계약 입력":
     position_amt = position_usd / entry_price
 
     risk_ratio = st.slider("리스크 비율 (%)", 0.1, 10.0, 2.0) / 100
-    risk_result = calculate_stop_loss_price(total_asset, position_amt, leverage, risk_ratio, entry_price)
+    risk_result = calculate_stop_loss_price(
+        total_asset, position_amt, leverage, risk_ratio, entry_price, direction
+    )
     suggested_stop = risk_result["손절 가격"]
 
     stop_price_method = st.radio("손절가 방식", ["자동", "직접"])
@@ -61,16 +60,12 @@ if selected_id == "새 계약 입력":
         stop_price = suggested_stop
     else:
         stop_price = st.number_input("직접 손절 가격 입력 ($)", value=suggested_stop, format="%.6f")
-
-        # ✅ 방향에 따라 손실 계산
         if direction == "LONG":
             price_diff = entry_price - stop_price
         else:
             price_diff = stop_price - entry_price
-
         loss_amt = abs(price_diff * position_amt * leverage)
         risk_pct = (loss_amt / total_asset) * 100 if total_asset > 0 else 0
-
         st.info(f"⚠️ 손실 예상: ${loss_amt:,.2f} → 자산 대비 {risk_pct:.2f}%")
 
     if st.button("💾 계약 저장"):
@@ -91,7 +86,6 @@ if selected_id == "새 계약 입력":
         save_positions(positions)
         st.success(f"✅ 계약 저장 완료: {new_id}")
 
-# ---------------- 기존 계약 조작 ----------------
 else:
     selected = next(p for p in positions if p["id"] == selected_id)
     st.subheader(f"📄 계약: {selected['symbol']} ({selected.get('direction', 'LONG')})")
@@ -109,7 +103,7 @@ else:
     pct = st.slider("청산 비율 (%)", 1, 100, 50)
     exit_price = st.number_input("익절 가격 ($)", value=selected["entry_price"], format="%.6f")
 
-    if selected.get("direction", "LONG") == "LONG":
+    if selected["direction"] == "LONG":
         profit_amt = (exit_price - selected["entry_price"]) * selected["position_amt"]
     else:
         profit_amt = (selected["entry_price"] - exit_price) * selected["position_amt"]
