@@ -1,5 +1,7 @@
 # paper_trade_app.py (가상매매 전용 - 총 자산 파일 분리)
 import streamlit as st
+import os
+import pandas as pd
 from calculator import calculate_stop_loss_price
 from logger import log_paper_trade
 from asset_manager import get_paper_asset, update_paper_asset
@@ -76,3 +78,20 @@ if st.button("기록 저장"):
         profit=profit
     )
     st.success("가상 거래 기록 저장 완료!")
+
+# 📥 기록 다운로드 및 미리보기
+if os.path.exists("paper_trade_log.csv"):
+    with open("paper_trade_log.csv", "r") as f:
+        csv_data = f.read()
+
+    st.download_button(
+        label="📥 가상 거래 기록 다운로드 (CSV)",
+        data=csv_data,
+        file_name="paper_trade_log.csv",
+        mime="text/csv"
+    )
+
+    df = pd.read_csv("paper_trade_log.csv", header=None)
+    df.columns = ["날짜", "종목", "진입가", "손절가", "레버리지", "리스크비율", "이익"]
+    st.subheader("📄 최근 가상 거래 내역")
+    st.dataframe(df.tail(10))
