@@ -2,59 +2,24 @@ import streamlit as st
 import json
 import os
 import base64
-import requests
 from calculator import calculate_stop_loss_price
 from asset_manager import get_paper_asset, update_paper_asset
 
-# ✅ 바이낸스 선물 티커 자동 불러오기 (예외 처리 포함)
-@st.cache_data(ttl=3600)
-def get_binance_futures_symbols():
-    url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
-    res = requests.get(url)
+# ✅ 최신 Binance USDT 선물 티커 (2025년 3월 기준, 수동 리스트)
+futures_symbols = sorted([
+    "BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "SOLUSDT", "DOGEUSDT", "DOTUSDT", "MATICUSDT", "LTCUSDT",
+    "TRXUSDT", "BCHUSDT", "XLMUSDT", "LINKUSDT", "ETCUSDT", "ATOMUSDT", "XMRUSDT", "ALGOUSDT", "VETUSDT", "ICPUSDT",
+    "FILUSDT", "MKRUSDT", "AVAXUSDT", "AXSUSDT", "SANDUSDT", "EGLDUSDT", "AAVEUSDT", "KSMUSDT", "NEARUSDT", "GRTUSDT",
+    "FTMUSDT", "1INCHUSDT", "CAKEUSDT", "HBARUSDT", "ENJUSDT", "MANAUSDT", "XTZUSDT", "ZECUSDT", "DASHUSDT", "COMPUSDT",
+    "SNXUSDT", "YFIUSDT", "LRCUSDT", "ZENUSDT", "BATUSDT", "DGBUSDT", "ONTUSDT", "QTUMUSDT", "IOSTUSDT", "OMGUSDT",
+    "NANOUSDT", "ICXUSDT", "STORJUSDT", "ZRXUSDT", "KNCUSDT", "SCUSDT", "ANKRUSDT", "CRVUSDT", "SUSHIUSDT", "BALUSDT",
+    "CHZUSDT", "WAVESUSDT", "BANDUSDT", "RUNEUSDT", "LUNAUSDT", "COTIUSDT", "RSRUSDT", "OCEANUSDT", "REEFUSDT", "TWTUSDT",
+    "ALPHAUSDT", "RLCUSDT", "DENTUSDT", "HOTUSDT", "MTLUSDT", "WRXUSDT", "STMXUSDT", "CELRUSDT", "ARPAUSDT", "CTSIUSDT",
+    "PERLUSDT", "MDTUSDT", "DUSKUSDT", "CVCUSDT", "TOMOUSDT", "MITHUSDT", "WANUSDT", "FUNUSDT", "DOCKUSDT", "NKNUSDT",
+    "BEAMUSDT", "VITEUSDT", "STPTUSDT", "MBLUSDT", "OGNUSDT", "DREPUSDT", "BELUSDT", "WINGUSDT", "SWRVUSDT", "CREAMUSDT",
+    "UNIUSDT"
+])
 
-    try:
-        data = res.json()
-        if "symbols" not in data:
-            st.error(f"❌ Binance 응답 오류: {data}")
-            return ["BTCUSDT", "ETHUSDT"]
-        symbols = [
-            s["symbol"] for s in data["symbols"]
-            if s.get("contractType") == "PERPETUAL" and s.get("quoteAsset") == "USDT"
-        ]
-        return sorted(symbols)
-    except Exception as e:
-        st.error(f"❌ Binance API 오류: {e}")
-        return ["BTCUSDT", "ETHUSDT"]
-
-# ✅ GitHub 자동 푸시
-def push_to_github(content):
-    token = st.secrets["GITHUB_TOKEN"]
-    username = st.secrets["GITHUB_USERNAME"]
-    repo = st.secrets["GITHUB_REPO"]
-    branch = st.secrets["GITHUB_BRANCH"]
-    target_file = st.secrets["TARGET_FILE"]
-
-    api_url = f"https://api.github.com/repos/{username}/{repo}/contents/{target_file}"
-    res = requests.get(api_url, headers={"Authorization": f"token {token}"})
-    sha = res.json().get("sha", None)
-
-    encoded_content = base64.b64encode(content.encode()).decode()
-    payload = {
-        "message": "📌 Auto-update saved_positions.json from Streamlit",
-        "content": encoded_content,
-        "branch": branch,
-    }
-    if sha:
-        payload["sha"] = sha
-
-    res = requests.put(api_url, json=payload, headers={"Authorization": f"token {token}"})
-    if res.status_code in [200, 201]:
-        st.success("✅ GitHub에 자동 커밋 완료!")
-    else:
-        st.error(f"❌ GitHub 커밋 실패: {res.status_code}")
-        st.json(res.json())
-
-# 계약 파일
 POSITIONS_FILE = "saved_positions.json"
 
 def load_positions():
@@ -66,10 +31,8 @@ def load_positions():
 def save_positions(data):
     with open(POSITIONS_FILE, "w") as f:
         json.dump(data, f, indent=2)
-    with open(POSITIONS_FILE, "r") as f:
-        push_to_github(f.read())
 
-# ✅ Streamlit 앱 구성
+# Streamlit 설정
 st.set_page_config(page_title="📘 가상 리스크 계산기", layout="wide")
 st.title("📘 Hadol’s 가상 리스크 계산기 (Paper Trading)")
 
@@ -79,10 +42,8 @@ st.sidebar.markdown(f"💰 **총 자산: ${total_asset:,.2f}**")
 positions = load_positions()
 selected_id = st.sidebar.selectbox("📂 저장된 계약 선택", ["새 계약 입력"] + [p["id"] for p in positions])
 
-# 새 계약 입력
 if selected_id == "새 계약 입력":
     st.subheader("🆕 새 계약 입력")
-    futures_symbols = get_binance_futures_symbols()
     symbol = st.selectbox("종목 선택 (자동완성)", options=futures_symbols, index=futures_symbols.index("BTCUSDT") if "BTCUSDT" in futures_symbols else 0)
 
     entry_price = st.number_input("진입 가격 ($)", value=27000.0, format="%.6f")
@@ -122,4 +83,4 @@ if selected_id == "새 계약 입력":
         save_positions(positions)
         st.success(f"✅ 계약 저장 완료: {new_id}")
 
-# 이하 기존 계약 열람 및 조작은 동일 (변경 없음)
+# 이하: 기존 계약 열람 및 손절/익절/삭제 기능 동일 (생략 가능)
