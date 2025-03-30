@@ -18,6 +18,7 @@ futures_symbols = sorted([
     "BEAMUSDT", "VITEUSDT", "STPTUSDT", "MBLUSDT", "OGNUSDT", "DREPUSDT"
 ])
 
+
 POSITIONS_FILE = "saved_positions.json"
 
 def load_positions():
@@ -30,7 +31,7 @@ def save_positions(data):
     with open(POSITIONS_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
-# ✅ Streamlit UI 시작
+# ✅ Streamlit 설정
 st.set_page_config(page_title="📘 가상 리스크 계산기", layout="wide")
 st.title("📘 Hadol’s 가상 리스크 계산기 (Paper Trading)")
 
@@ -59,12 +60,18 @@ if selected_id == "새 계약 입력":
     if stop_price_method == "자동":
         stop_price = suggested_stop
     else:
-            stop_price = st.number_input("직접 손절 가격 입력 ($)", value=suggested_stop, format="%.6f")
-            # ✅ 수정된 손실 계산
-            price_diff = entry_price - stop_price if direction == "LONG" else stop_price - entry_price
-            loss_amt = price_diff * position_amt * leverage
-            risk_pct = (loss_amt / total_asset) * 100 if total_asset > 0 else 0
-            st.info(f"⚠️ 손실 예상: ${loss_amt:,.2f} → 자산 대비 {risk_pct:.2f}%")
+        stop_price = st.number_input("직접 손절 가격 입력 ($)", value=suggested_stop, format="%.6f")
+
+        # ✅ 방향에 따라 손실 계산
+        if direction == "LONG":
+            price_diff = entry_price - stop_price
+        else:
+            price_diff = stop_price - entry_price
+
+        loss_amt = abs(price_diff * position_amt * leverage)
+        risk_pct = (loss_amt / total_asset) * 100 if total_asset > 0 else 0
+
+        st.info(f"⚠️ 손실 예상: ${loss_amt:,.2f} → 자산 대비 {risk_pct:.2f}%")
 
     if st.button("💾 계약 저장"):
         new_id = f"{symbol}_{entry_price}_{position_usd}_{direction}"
