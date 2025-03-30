@@ -9,16 +9,5 @@
     "stop_price": 2.3,
     "realized_profit": 0,
     "status": "open"
-  },
-  {
-    "id": "XRPUSDT_2.16_300.0",
-    "symbol": "XRPUSDT",
-    "entry_price": 2.16,
-    "leverage": 10,
-    "position_usd": 300.0,
-    "position_amt": 138.88888888888889,
-    "stop_price": 2.3,
-    "realized_profit": 0,
-    "status": "open"
   }
 ]
