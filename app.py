@@ -5,6 +5,14 @@ from logger import log_trade
 from asset_manager import get_total_asset, update_total_asset
 from binance_client import get_open_positions
 
+@st.cache_data(ttl=3600)
+def get_binance_futures_symbols():
+    url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
+    res = requests.get(url)
+    data = res.json()
+    symbols = [s["symbol"] for s in data["symbols"] if s["contractType"] == "PERPETUAL" and s["quoteAsset"] == "USDT"]
+    return sorted(symbols)
+
 st.set_page_config(
     page_title="투자 리스크 계산기",
     page_icon="💹",
@@ -28,7 +36,9 @@ st.sidebar.subheader(f"💰 총 자산: ${total_asset:,}")
 
 positions = get_open_positions()
 symbols = [p["symbol"] for p in positions]
-selected = st.selectbox("포지션 선택", options=symbols)
+futures_symbols = get_binance_futures_symbols()
+selected = st.selectbox("포지션 선택 (자동완성)", options=futures_symbols, index=futures_symbols.index("BTCUSDT") if "BTCUSDT" in futures_symbols else 0)
+
 
 selected_position = next(p for p in positions if p["symbol"] == selected)
 entry_price = selected_position["entryPrice"]
