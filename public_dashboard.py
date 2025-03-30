@@ -25,8 +25,12 @@ def load_data():
     return df
 
 # 스트림릿 페이지 설정
-st.set_page_config(page_title="리스크 수익률 대시보드", page_icon="📈", layout="wide")
-st.title("📈 리스크 수익률 대시보드 (공개용)")
+st.set_page_config(
+    page_title="Hadol’s 수익률 대시보드",
+    page_icon="📈",
+    layout="wide"
+)
+st.title("📈 Hadol’s 수익률 대시보드")
 
 # 데이터 불러오기
 df = load_data()
