@@ -1,4 +1,4 @@
-# paper_trade_app.py (가상매매 전용 - 총 자산 파일 분리)
+# paper_trade_app.py (가상매매 전용 - 총 자산 파일 분리 + 포지션 금액 입력)
 import streamlit as st
 import os
 import pandas as pd
@@ -31,7 +31,8 @@ st.sidebar.subheader(f"💰 가상 총 자산: ${total_asset:,}")
 symbol = st.text_input("종목 티커 입력", value="BTCUSDT")
 entry_price = st.number_input("진입 가격 ($)", value=27000.0)
 leverage = st.number_input("레버리지", min_value=1, max_value=125, value=10)
-position_amt = st.number_input("포지션 수량", value=0.1)
+position_usd = st.number_input("포지션 금액 ($)", value=500.0)
+position_amt = position_usd / entry_price if entry_price > 0 else 0
 
 risk_ratio = st.slider("리스크 비율 (%)", 0.1, 10.0, 2.0) / 100
 risk_result = calculate_stop_loss_price(

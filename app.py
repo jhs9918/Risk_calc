@@ -1,4 +1,4 @@
-# app.py (달러 버전)
+# app.py (실매매용 - 포지션 금액 기준 입력)
 import streamlit as st
 from calculator import calculate_stop_loss_price
 from logger import log_trade
@@ -21,7 +21,7 @@ html, body, [class*="css"]  {
 </style>
 """, unsafe_allow_html=True)
 
-st.title("Hadol_s Risk Manager")
+st.title("💹 Hadol’s 리스크 계산기 (실거래용)")
 
 total_asset = get_total_asset()
 st.sidebar.subheader(f"💰 총 자산: ${total_asset:,}")
@@ -36,9 +36,13 @@ leverage = selected_position["leverage"]
 
 st.write(f"진입 가격: ${entry_price}, 레버리지: {leverage}배")
 
+# ✅ 포지션 금액 기준 입력
+position_usd = st.number_input("포지션 금액 ($)", value=500.0)
+position_amt = position_usd / entry_price if entry_price > 0 else 0
+
 risk_ratio = st.slider("리스크 비율 (%)", 0.1, 10.0, 2.0) / 100
 risk_result = calculate_stop_loss_price(
-    total_asset, selected_position["positionAmt"], leverage, risk_ratio, entry_price
+    total_asset, position_amt, leverage, risk_ratio, entry_price
 )
 suggested_stop = risk_result["손절 가격"]
 
