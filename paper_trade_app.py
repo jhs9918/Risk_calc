@@ -1,8 +1,8 @@
-# paper_trade_app.py (가상매매 전용)
+# paper_trade_app.py (가상매매 전용 - 총 자산 파일 분리)
 import streamlit as st
 from calculator import calculate_stop_loss_price
 from logger import log_paper_trade
-from asset_manager import get_total_asset, update_total_asset
+from asset_manager import get_paper_asset, update_paper_asset
 
 st.set_page_config(
     page_title="Hadol’s 가상 리스크 계산기",
@@ -22,8 +22,8 @@ html, body, [class*="css"]  {
 
 st.title("📘 Hadol’s 가상 리스크 계산기 (Paper Trading)")
 
-total_asset = get_total_asset()
-st.sidebar.subheader(f"💰 총 자산: ${total_asset:,}")
+total_asset = get_paper_asset()
+st.sidebar.subheader(f"💰 가상 총 자산: ${total_asset:,}")
 
 # 사용자 입력 기반 가상 포지션 설정
 symbol = st.text_input("종목 티커 입력", value="BTCUSDT")
@@ -54,15 +54,15 @@ st.write(f"최종 손절 가격: ${stop_price:.2f}")
 col1, col2, col3 = st.columns(3)
 col1.metric("손절 가격", f"${stop_price:,.2f}")
 col2.metric("리스크 비율", f"{risk_ratio*100:.2f}%")
-col3.metric("총 자산", f"${total_asset:,}")
+col3.metric("가상 총 자산", f"${total_asset:,}")
 
 with st.expander("익절 처리"):
     profit = st.number_input("익절 금액 ($)", value=0.0)
     if profit > 0:
         percent_closed = st.slider("청산 비율 (%)", 1, 100, 50)
         realized = profit * (percent_closed / 100)
-        new_asset = update_total_asset(realized)
-        st.success(f"자산이 ${realized:,.2f} 증가하여 총 자산은 ${new_asset:,.2f}가 되었습니다.")
+        new_asset = update_paper_asset(realized)
+        st.success(f"가상 자산이 ${realized:,.2f} 증가하여 총 자산은 ${new_asset:,.2f}가 되었습니다.")
         trailing_stop = st.number_input("추적 손절 가격 ($)", value=stop_price)
         stop_price = trailing_stop
 
