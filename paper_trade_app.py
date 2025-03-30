@@ -59,10 +59,12 @@ if selected_id == "새 계약 입력":
     if stop_price_method == "자동":
         stop_price = suggested_stop
     else:
-        stop_price = st.number_input("직접 손절 가격 입력 ($)", value=suggested_stop, format="%.6f")
-        loss_amt = (entry_price - stop_price) * position_amt if direction == "LONG" else (stop_price - entry_price) * position_amt
-        risk_pct = (loss_amt / total_asset) * 100 if total_asset > 0 else 0
-        st.info(f"⚠️ 손실 예상: ${loss_amt:.2f} → 자산 대비 {risk_pct:.2f}%")
+            stop_price = st.number_input("직접 손절 가격 입력 ($)", value=suggested_stop, format="%.6f")
+            # ✅ 수정된 손실 계산
+            price_diff = entry_price - stop_price if direction == "LONG" else stop_price - entry_price
+            loss_amt = price_diff * position_amt * leverage
+            risk_pct = (loss_amt / total_asset) * 100 if total_asset > 0 else 0
+            st.info(f"⚠️ 손실 예상: ${loss_amt:,.2f} → 자산 대비 {risk_pct:.2f}%")
 
     if st.button("💾 계약 저장"):
         new_id = f"{symbol}_{entry_price}_{position_usd}_{direction}"
