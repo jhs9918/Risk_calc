@@ -1,3 +1,7 @@
+# app.py 제일 위에 임시 추가
+st.cache_data.clear()
+st.cache_resource.clear()
+
 # app.py (달러 버전)
 import streamlit as st
 from calculator import calculate_stop_loss_price
