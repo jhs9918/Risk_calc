@@ -1,11 +1,10 @@
 import streamlit as st
 import json
 import os
-import base64
 from calculator import calculate_stop_loss_price
 from asset_manager import get_paper_asset, update_paper_asset
 
-# ✅ 최신 Binance USDT 선물 티커 (2025년 3월 기준, 수동 리스트)
+# ✅ 최신 Binance USDT 선물 티커 수동 리스트 (2025년 3월 기준)
 futures_symbols = sorted([
     "BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "SOLUSDT", "DOGEUSDT", "DOTUSDT", "MATICUSDT", "LTCUSDT",
     "TRXUSDT", "BCHUSDT", "XLMUSDT", "LINKUSDT", "ETCUSDT", "ATOMUSDT", "XMRUSDT", "ALGOUSDT", "VETUSDT", "ICPUSDT",
@@ -16,8 +15,7 @@ futures_symbols = sorted([
     "CHZUSDT", "WAVESUSDT", "BANDUSDT", "RUNEUSDT", "LUNAUSDT", "COTIUSDT", "RSRUSDT", "OCEANUSDT", "REEFUSDT", "TWTUSDT",
     "ALPHAUSDT", "RLCUSDT", "DENTUSDT", "HOTUSDT", "MTLUSDT", "WRXUSDT", "STMXUSDT", "CELRUSDT", "ARPAUSDT", "CTSIUSDT",
     "PERLUSDT", "MDTUSDT", "DUSKUSDT", "CVCUSDT", "TOMOUSDT", "MITHUSDT", "WANUSDT", "FUNUSDT", "DOCKUSDT", "NKNUSDT",
-    "BEAMUSDT", "VITEUSDT", "STPTUSDT", "MBLUSDT", "OGNUSDT", "DREPUSDT", "BELUSDT", "WINGUSDT", "SWRVUSDT", "CREAMUSDT",
-    "UNIUSDT"
+    "BEAMUSDT", "VITEUSDT", "STPTUSDT", "MBLUSDT", "OGNUSDT", "DREPUSDT"
 ])
 
 POSITIONS_FILE = "saved_positions.json"
@@ -32,7 +30,7 @@ def save_positions(data):
     with open(POSITIONS_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
-# Streamlit 설정
+# ✅ Streamlit UI 시작
 st.set_page_config(page_title="📘 가상 리스크 계산기", layout="wide")
 st.title("📘 Hadol’s 가상 리스크 계산기 (Paper Trading)")
 
@@ -42,6 +40,7 @@ st.sidebar.markdown(f"💰 **총 자산: ${total_asset:,.2f}**")
 positions = load_positions()
 selected_id = st.sidebar.selectbox("📂 저장된 계약 선택", ["새 계약 입력"] + [p["id"] for p in positions])
 
+# ---------------- 새 계약 입력 ----------------
 if selected_id == "새 계약 입력":
     st.subheader("🆕 새 계약 입력")
     symbol = st.selectbox("종목 선택 (자동완성)", options=futures_symbols, index=futures_symbols.index("BTCUSDT") if "BTCUSDT" in futures_symbols else 0)
@@ -83,4 +82,50 @@ if selected_id == "새 계약 입력":
         save_positions(positions)
         st.success(f"✅ 계약 저장 완료: {new_id}")
 
-# 이하: 기존 계약 열람 및 손절/익절/삭제 기능 동일 (생략 가능)
+# ---------------- 기존 계약 조작 ----------------
+else:
+    selected = next(p for p in positions if p["id"] == selected_id)
+    st.subheader(f"📄 계약: {selected['symbol']} ({selected.get('direction', 'LONG')})")
+    st.write(f"💵 진입가: ${selected['entry_price']}, 레버리지: {selected['leverage']}배")
+    st.write(f"📉 손절가: ${selected['stop_price']:.6f}, 포지션 금액: ${selected['position_usd']:.2f}")
+    st.write(f"📌 상태: **{selected['status']}**")
+
+    new_stop = st.number_input("✏️ 손절가 수정", value=selected["stop_price"], format="%.6f")
+    if new_stop != selected["stop_price"]:
+        selected["stop_price"] = new_stop
+        save_positions(positions)
+        st.success("🔁 손절가 수정 완료")
+
+    st.subheader("✅ 익절 처리")
+    pct = st.slider("청산 비율 (%)", 1, 100, 50)
+    exit_price = st.number_input("익절 가격 ($)", value=selected["entry_price"], format="%.6f")
+
+    if selected.get("direction", "LONG") == "LONG":
+        profit_amt = (exit_price - selected["entry_price"]) * selected["position_amt"]
+    else:
+        profit_amt = (selected["entry_price"] - exit_price) * selected["position_amt"]
+
+    profit_pct = (profit_amt / total_asset) * 100 if total_asset > 0 else 0
+    st.info(f"💹 이 익절가는 총 자산의 약 {profit_pct:.2f}% 수익에 해당합니다.")
+
+    if st.button("💸 익절"):
+        profit = profit_amt * (pct / 100)
+        selected["realized_profit"] += profit
+        selected["status"] = "closed"
+        new_asset = update_paper_asset(profit)
+        save_positions(positions)
+        st.success(f"🎉 익절 완료! 수익: ${profit:.2f}, 총 자산: ${new_asset:.2f}")
+
+    if st.button("🛑 손절 처리"):
+        loss = -1 * selected["position_usd"]
+        selected["realized_profit"] = loss
+        selected["status"] = "stopped"
+        new_asset = update_paper_asset(loss)
+        save_positions(positions)
+        st.error(f"💥 손절 완료! 손실: ${-loss:.2f}, 총 자산: ${new_asset:.2f}")
+
+    if st.button("🗑️ 계약 삭제"):
+        positions = [p for p in positions if p["id"] != selected_id]
+        save_positions(positions)
+        st.success(f"🧹 계약 '{selected_id}' 삭제 완료!")
+        st.experimental_rerun()
