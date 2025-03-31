@@ -3,6 +3,7 @@ import json
 import os
 from calculator import calculate_stop_loss_price
 from asset_manager import get_paper_asset, update_paper_asset
+from github_uploader import commit_to_github
 
 # ✅ 최신 Binance USDT 선물 티커 수동 리스트 (2025년 3월 기준)
 futures_symbols = sorted([
@@ -131,6 +132,8 @@ else:
         st.success(f"🎉 익절 완료! 수익: ${profit:,.2f}, 총 자산: ${new_asset:,.2f}")
         if pct < 100:
             st.info(f"남은 포지션: {selected['position_amt']:.6f} 계약, 포지션 금액: ${selected['position_usd']:.2f}")
+        save_positions(positions)
+        commit_to_github()
 
     if st.button("🛑 손절 처리"):
         loss = -1 * selected["position_usd"]
@@ -139,7 +142,8 @@ else:
         new_asset = update_paper_asset(loss)
         save_positions(positions)
         st.error(f"💥 손절 완료! 손실: ${-loss:,.2f}, 총 자산: ${new_asset:,.2f}")
-
+        save_positions(positions)
+        commit_to_github()
     if st.button("🗑️ 계약 삭제"):
         positions = [p for p in positions if p["id"] != selected_id]
         save_positions(positions)
