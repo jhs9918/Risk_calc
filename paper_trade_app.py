@@ -17,6 +17,7 @@ futures_symbols = sorted([
     "PERLUSDT", "MDTUSDT", "DUSKUSDT", "CVCUSDT", "TOMOUSDT", "MITHUSDT", "WANUSDT", "FUNUSDT", "DOCKUSDT", "NKNUSDT",
     "BEAMUSDT", "VITEUSDT", "STPTUSDT", "MBLUSDT", "OGNUSDT", "DREPUSDT"
 ])
+
 POSITIONS_FILE = "saved_positions.json"
 
 def load_positions():
@@ -58,15 +59,13 @@ if selected_id == "새 계약 입력":
         stop_price = suggested_stop
     else:
         stop_price = st.number_input("직접 손절 가격 입력 ($)", value=suggested_stop, format="%.6f")
-        # 수정된 계산식: LONG/SHORT 모두 실제 예상 손실을 부호를 포함하여 계산
         if direction == "LONG":
             price_diff = entry_price - stop_price
         else:
             price_diff = stop_price - entry_price
-        # SHORT 포지션에서 손실은 음수로 표시
-        predicted_loss = - (price_diff * position_amt * leverage)
-        risk_pct = (abs(predicted_loss) / total_asset) * 100 if total_asset > 0 else 0
-        st.info(f"⚠️ 예상 손실: ${predicted_loss:,.2f} → 자산 대비 {risk_pct:.2f}%")
+        loss_amt = abs(price_diff * position_amt * leverage)
+        risk_pct = (loss_amt / total_asset) * 100 if total_asset > 0 else 0
+        st.info(f"⚠️ 예상 손실: ${loss_amt:,.2f} → 자산 대비 {risk_pct:.2f}%")
 
     if st.button("💾 계약 저장"):
         new_id = f"{symbol}_{entry_price}_{position_usd}_{direction}"
@@ -105,20 +104,33 @@ else:
     exit_price = st.number_input("익절 가격 ($)", value=selected["entry_price"], format="%.6f")
 
     if selected.get("direction", "LONG") == "LONG":
-        profit_amt = (exit_price - selected["entry_price"]) * selected["position_amt"]
+        total_profit_amt = (exit_price - selected["entry_price"]) * selected["position_amt"]
     else:
-        profit_amt = (selected["entry_price"] - exit_price) * selected["position_amt"]
+        total_profit_amt = (selected["entry_price"] - exit_price) * selected["position_amt"]
 
-    profit_pct = (profit_amt / total_asset) * 100 if total_asset > 0 else 0
+    profit_amt = total_profit_amt * (pct / 100)
+    profit_pct = (abs(profit_amt) / total_asset) * 100 if total_asset > 0 else 0
     st.info(f"💹 이 익절가는 총 자산의 약 {profit_pct:.2f}% 수익에 해당합니다.")
 
     if st.button("💸 익절"):
-        profit = profit_amt * (pct / 100)
+        closed_fraction = pct / 100.0
+        profit = total_profit_amt * closed_fraction
+        # 부분 익절: 남은 포지션 계산
+        if pct < 100:
+            selected["position_amt"] = selected["position_amt"] * (1 - closed_fraction)
+            selected["position_usd"] = selected["position_usd"] * (1 - closed_fraction)
+            selected["status"] = "partial"
+        else:
+            selected["position_amt"] = 0
+            selected["position_usd"] = 0
+            selected["status"] = "closed"
+
         selected["realized_profit"] += profit
-        selected["status"] = "closed"
         new_asset = update_paper_asset(profit)
         save_positions(positions)
-        st.success(f"🎉 익절 완료! 수익: ${profit:.2f}, 총 자산: ${new_asset:.2f}")
+        st.success(f"🎉 익절 완료! 수익: ${profit:,.2f}, 총 자산: ${new_asset:,.2f}")
+        if pct < 100:
+            st.info(f"남은 포지션: {selected['position_amt']:.6f} 계약, 포지션 금액: ${selected['position_usd']:.2f}")
 
     if st.button("🛑 손절 처리"):
         loss = -1 * selected["position_usd"]
@@ -126,7 +138,7 @@ else:
         selected["status"] = "stopped"
         new_asset = update_paper_asset(loss)
         save_positions(positions)
-        st.error(f"💥 손절 완료! 손실: ${-loss:.2f}, 총 자산: ${new_asset:.2f}")
+        st.error(f"💥 손절 완료! 손실: ${-loss:,.2f}, 총 자산: ${new_asset:,.2f}")
 
     if st.button("🗑️ 계약 삭제"):
         positions = [p for p in positions if p["id"] != selected_id]
